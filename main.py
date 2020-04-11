@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--ckpt_path', type=str, default='./ckpt')
     parser.add_argument('--model_path', type=str, default='./model')
-    parser.add_argument('--seq_length', type=int, default=30)
+    parser.add_argument('--seq_length', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--mode', type=str, default='left2right')
 

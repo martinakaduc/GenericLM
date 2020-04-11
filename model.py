@@ -8,7 +8,7 @@ from sequence_generator import SequenceGenerator
 def build_model(vocab_size, seq_length=30, batch_size=32):
     model = Sequential()
 
-    model.add(Embedding(vocab_size, 300, input_length=seq_length, trainable=True))
+    model.add(Embedding(vocab_size, 200, input_length=seq_length, trainable=True))
     model.add(LSTM(512, return_sequences=True))
     model.add(LSTM(512, return_sequences=True))
     model.add(Dropout(0.15))
