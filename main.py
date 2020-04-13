@@ -1,6 +1,6 @@
 import os
 import argparse
-from model import GenericLM
+from model import GenericLM, GenericLM_multi
 from text_utils import *
 from file_utils import *
 
@@ -10,14 +10,18 @@ def main(args):
     mapping = generate_mapping(raw_text)
     vocab_size = len(mapping)
 
-    generic_lm = GenericLM(vocab_size, mapping, seq_length=args.seq_length,
-                batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
+    if not args.multi_gpu:
+        generic_lm = GenericLM(vocab_size, mapping, seq_length=args.seq_length,
+                    batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
+    else:
+        generic_lm = GenericLM_multi(vocab_size, mapping, seq_length=args.seq_length,
+                    batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
 
     if args.mode == 'left2right':
-        generic_lm.fit(raw_text, epochs=args.epochs)
+        generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
     elif args.mode == 'right2left':
         raw_text = raw_text[::-1]
-        generic_lm.fit(raw_text, epochs=args.epochs)
+        generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -28,6 +32,8 @@ if __name__ == '__main__':
     parser.add_argument('--seq_length', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--mode', type=str, default='left2right')
+    parser.add_argument('--multi_gpu', type=bool, default=True)
+    parser.add_argument('--ckpt_period', type=int, default=1)
 
     args = parser.parse_args()
 
