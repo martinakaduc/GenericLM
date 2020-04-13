@@ -57,6 +57,7 @@ class GenericLM():
 
     def load_ckpt(self):
         ckpt_file = os.listdir(self.ckpt_path)
+        ckpt_file = list(filter(lambda x: x[-2:] == 'h5', ckpt_file))
         if ckpt_file:
             self.model.load_weights(os.path.join(self.ckpt_path, ckpt_file[-1]))
 
@@ -98,6 +99,7 @@ class GenericLM_multi():
 
     def load_ckpt(self):
         ckpt_file = os.listdir(self.ckpt_path)
+        ckpt_file = list(filter(lambda x: x[-2:] == 'h5', ckpt_file))
         if ckpt_file:
             self.model.load_weights(os.path.join(self.ckpt_path, ckpt_file[-1]))
 
