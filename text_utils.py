@@ -11,10 +11,10 @@ def text_cleaner(text):
     text = re.sub("[^a-zA-ZạảãàáâậầấẩẫăắằặẳẵóòọõỏôộổỗồốơờớợởỡéèẻẹẽêếềệểễúùụủũưựữửừứíìịỉĩýỳỷỵỹđẠẢÃÀÁÂẬẦẤẨẪĂẮẰẶẲẴÓÒỌÕỎÔỘỔỖỒỐƠỜỚỢỞỠÉÈẺẸẼÊẾỀỆỂỄÚÙỤỦŨƯỰỮỬỪỨÍÌỊỈĨÝỲỶỴỸĐ]", " ", text)
     return text
 
-def encode_sequence(mapping, text, padding=False):
+def encode_sequence(mapping, text, padding=False, seq_length=40):
     encoded_seq = [mapping[char] for char in text]
     if padding:
-        encoded_seq = pad_sequences([encoded_seq], maxlen=len(mapping), truncating='pre')
+        encoded_seq = pad_sequences([encoded_seq], maxlen=seq_length, truncating='pre')
     return encoded_seq
 
 def generate_mapping(text, mapping_file='generic_mapping.pkl'):
@@ -29,7 +29,7 @@ def decode_sequence(mapping, text):
     out_text = ""
     for i in range(len(text)):
         for char, index in mapping.items():
-            if index == in_text[i]:
+            if index == text[i]:
                 out_text += char
                 break
     return out_text

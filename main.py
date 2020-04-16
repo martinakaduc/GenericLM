@@ -1,44 +1,65 @@
 import os
 import argparse
-from model import GenericLM, GenericLM_multi
+import pickle
+from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from sequence_generator import SequenceGenerator
+from model import GenericLM
 from text_utils import *
 from file_utils import *
-from _thread import *
-
-def train_left(args, vocab_size, mapping, raw_text):
-    generic_lm_l2r = GenericLM(vocab_size, mapping, seq_length=args.seq_length,
-                batch_size=args.batch_size, ckpt_path=args.ckpt_path+'/left', model_path=args.model_path, mode_name=args.mode)
-    generic_lm_l2r.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
-
-def train_right(args, vocab_size, mapping, raw_text):
-    generic_lm_r2l = GenericLM(vocab_size, mapping, seq_length=args.seq_length,
-                batch_size=args.batch_size, ckpt_path=args.ckpt_path+'/right', model_path=args.model_path, mode_name=args.mode)
-
-    generic_lm_r2l.fit(raw_text[::-1], epochs=args.epochs, ckpt_period=args.ckpt_period)
 
 def main(args):
-    raw_text = load_data(args.corpus)
-    raw_text = text_cleaner(raw_text)
-    mapping = generate_mapping(raw_text)
-    vocab_size = len(mapping)
+    if os.path.exists(args.corpus[:-4]+'_processed.txt'):
+        raw_text = load_data(args.corpus[:-4]+'_processed.txt')
+    else:
+        raw_text = load_data(args.corpus)
+        # raw_text = text_cleaner(raw_text)
+        with open(args.corpus[:-4]+'_processed.txt', 'w', encoding='utf8') as f:
+            f.write(raw_text)
 
-    if args.mode == 'both':
-        start_new_thread(train_left, (args, vocab_size, mapping, raw_text))
-        start_new_thread(train_right, (args, vocab_size, mapping, raw_text))
+    if os.path.exists('generic_mapping.pkl'):
+        mapping = pickle.load(open('generic_mapping.pkl', 'rb'))
+    else:
+        if args.low_ram:
+            chars = sorted(list(set(raw_text)))
+            mapping = dict((c, i) for i, c in enumerate(chars))
+
+            # save the mapping
+            pickle.dump(mapping, open('generic_mapping.pkl', 'wb'))
+        else:
+            mapping = generate_mapping(raw_text)
+
+    ########################################
+    vocab_size = len(mapping)
+    generic_lm = GenericLM(vocab_size, mapping, seq_length=args.seq_length, multi_gpu=args.multi_gpu,
+                batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
+    ########################################
+
+    if args.low_ram:
+        if args.mode == 'right2left':
+            raw_text = raw_text[::-1]
+
+        model = generic_lm.get_model()
+
+        optimizer = Adam(lr=5e-4, decay=5e-6)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+        checkpoint = ModelCheckpoint(os.path.join(args.ckpt_path, 'GenericLM_{epoch:03d}.h5'), period=args.ckpt_period, save_weights_only=True)
+        early_stop = EarlyStopping(monitor='loss', patience=12)
+
+        sequenece_genrator = SequenceGenerator(raw_text, args.seq_length, mapping, batch_size=args.batch_size)
+
+        model.fit_generator(generator=sequenece_genrator,
+                                epochs=args.epochs,
+                                callbacks=[checkpoint, early_stop])
+
+        model.save(os.path.join(args.model_path, 'GenericLM_%s.model'%args.mode))
 
     else:
-        if not args.multi_gpu:
-            generic_lm = GenericLM(vocab_size, mapping, seq_length=args.seq_length,
-                        batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
-        else:
-            generic_lm = GenericLM_multi(vocab_size, mapping, seq_length=args.seq_length,
-                        batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
-
-        if args.mode == 'left2right':
-            generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
-        elif args.mode == 'right2left':
+        if args.mode == 'right2left':
             raw_text = raw_text[::-1]
-            generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
+
+        generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -51,8 +72,9 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='left2right')
     parser.add_argument('--multi_gpu', type=bool, default=False)
     parser.add_argument('--ckpt_period', type=int, default=1)
+    parser.add_argument('--low_ram', type=bool, default=True)
 
     args = parser.parse_args()
 
-    assert args.mode in ['left2right', 'right2left', 'both'], "Choose one of these mode: left2right, right2left."
+    assert args.mode in ['left2right', 'right2left'], "Choose one of these mode: left2right, right2left."
     main(args)
