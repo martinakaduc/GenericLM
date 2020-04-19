@@ -2,7 +2,7 @@ import os
 from keras.models import Sequential, load_model
 from keras.optimizers import Adam
 from keras.layers import LSTM, Embedding, Dense, Dropout
-from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.callbacks import ModelCheckpoint, EarlyStopping, Callback
 from sequence_generator import SequenceGenerator
 from keras.utils import multi_gpu_model
 from text_utils import *
@@ -27,25 +27,11 @@ def build_model(vocab_size, seq_length=30, batch_size=32):
     return model
 
 def load_multigpu_checkpoint_weights(model, h5py_file):
-    """
-    Loads the weights of a weight checkpoint from a multi-gpu
-    keras model.
-
-    Input:
-
-        model - keras model to load weights into
-
-        h5py_file - path to the h5py weights file
-
-    Output:
-        None
-    """
-
     print("Setting weights...")
     with h5py.File(h5py_file, "r") as file:
 
         # Get model subset in file - other layers are empty
-        weight_file = file["sequential_1"]
+        weight_file = file["model_1"]
 
         for layer in model.layers:
 
@@ -79,6 +65,21 @@ def load_multigpu_checkpoint_weights(model, h5py_file):
                 print(e)
                 print("Error: Could not load weights for layer: " + layer.name)
 
+class SaveModel(Callback):
+    def __init__(self, ckpt_path='./ckpt', model_path='./model', mode_name='left2right', ckpt_period=1):
+        super(SaveModel, self).__init__()
+        self.ckpt_path = ckpt_path
+        self.model_path = model_path
+        self.mode_name = mode_name
+        self.ckpt_period = ckpt_period
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1) % self.ckpt_period == 0:
+            self.model.save(os.path.join(self.ckpt_path, 'GenericLM_%s_%.3d.model'%(self.mode_name, epoch)))
+
+    def on_train_end(self, logs=None):
+         self.model.save(os.path.join(self.model_path, 'GenericLM_%s.model'%self.mode_name))
+
 class GenericLM():
     def __init__(self, vocab_size, mapping, seq_length=30, batch_size=32, multi_gpu=False,
                 ckpt_path='./ckpt', model_path='./model', mode_name='left2right'):
@@ -89,49 +90,62 @@ class GenericLM():
         self.ckpt_path = ckpt_path
         self.model_path = model_path
         self.mode_name = mode_name
+        self.continue_epoch = 0
 
         if os.path.exists(os.path.join(self.model_path, 'GenericLM_%s.model'%self.mode_name)):
             print("Loading saved model...")
             self.model = load_model(os.path.join(self.model_path, 'GenericLM_%s.model'%self.mode_name))
         else:
-            self.model = build_model(self.vocab_size, self.seq_length, self.batch_size)
-            self.load_ckpt()
+            have_ckpt = self.load_ckpt()
+            if not have_ckpt:
+                self.model = build_model(self.vocab_size, self.seq_length, self.batch_size)
 
-        if multi_gpu:
+        if multi_gpu == True:
             self.model = multi_gpu_model(self.model)
 
     def fit(self, corpus, epochs, ckpt_period=1):
         optimizer = Adam(lr=5e-4, decay=5e-6)
         self.model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
-        checkpoint = ModelCheckpoint(os.path.join(self.ckpt_path, 'GenericLM_{epoch:03d}.h5'), period=ckpt_period, save_weights_only=True)
+        # checkpoint = ModelCheckpoint(os.path.join(self.ckpt_path, 'GenericLM_{epoch:03d}.h5'), period=ckpt_period, save_weights_only=True)
         early_stop = EarlyStopping(monitor='loss', patience=12)
-
+        save_model = SaveModel(ckpt_path=self.ckpt_path, model_path=self.model_path, mode_name=self.mode_name, ckpt_period=ckpt_period)
         sequenece_genrator = SequenceGenerator(corpus, self.seq_length, self.mapping, batch_size=self.batch_size)
 
         self.model.fit_generator(generator=sequenece_genrator,
-                                epochs=epochs,
-                                callbacks=[checkpoint, early_stop])
-
-        self.model.save(os.path.join(self.model_path, 'GenericLM_%s.model'%self.mode_name))
+                                epochs=epochs + self.continue_epoch,
+                                initial_epoch=self.continue_epoch,
+                                callbacks=[save_model, early_stop])
 
     def get_model(self):
         return self.model
 
+    def get_continue_epoch(self):
+        return self.continue_epoch
+
     def load_ckpt(self):
         ckpt_file = os.listdir(self.ckpt_path)
-        ckpt_file = list(filter(lambda x: x[-2:] == 'h5', ckpt_file))
+        ckpt_file = list(filter(lambda x: x[-5:] == 'model', ckpt_file))
+        ckpt_file = sorted(ckpt_file)
+
         if ckpt_file:
-            print("Restoring model from checkpoint...")
-            self.model.load_weights(os.path.join(self.ckpt_path, ckpt_file[-1]))
+            print("Restoring model from checkpoint: %s..."%ckpt_file[-1])
+            self.model= load_model(os.path.join(self.ckpt_path, ckpt_file[-1]))
+            self.continue_epoch = int(ckpt_file[-1][21:-6]) + 1
             # load_multigpu_checkpoint_weights(self.model, os.path.join(self.ckpt_path, ckpt_file[-1]))
+            # self.model.save(os.path.join(self.model_path, 'GenericLM_%s.model'%self.mode_name))
+            return True
+        return False
 
     def predict(self, X, return_prob_table=False, return_label=True):
         if return_prob_table:
             return self.model.predict_proba(X)
 
         else:
-            next_char_predict = self.model.predict_classes(X)
+            # next_char_predict = self.model.predict_classes(X)
+            predict_res = self.model.predict(X)
+            next_char_predict = np.argmax(predict_res, axis=1)
+
             if return_label:
                 next_char_predict = decode_sequence(self.mapping, next_char_predict)
             return list(next_char_predict)
