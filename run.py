@@ -15,11 +15,17 @@ def main(args):
         if input_text.lower() == 'exit':
             break
 
+        if (args.mode == 'right2left'):
+            input_text = input_text[::-1]
+
         for _ in range(args.predict_length):
             encoded_text = encode_sequence(mapping, input_text.lower(), padding=True, seq_length=args.seq_length)
             next_char = generic_lm.predict(encoded_text, return_prob_table=False, return_label=True)[0]
             input_text += next_char
 
+        if (args.mode == 'right2left'):
+            input_text = input_text[::-1]
+            
         print('Predict: %s\n' % input_text)
 
 if __name__ == '__main__':
