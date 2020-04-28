@@ -138,14 +138,12 @@ class GenericLM():
         return False
 
     def predict(self, X, return_prob_table=False, return_label=True):
+        # next_char_predict = self.model.predict_classes(X)
+        predict_res = self.model.predict(X)
         if return_prob_table:
-            return self.model.predict_proba(X)
+            return predict_res
+        next_char_predict = np.argmax(predict_res, axis=1)
 
-        else:
-            # next_char_predict = self.model.predict_classes(X)
-            predict_res = self.model.predict(X)
-            next_char_predict = np.argmax(predict_res, axis=1)
-
-            if return_label:
-                next_char_predict = decode_sequence(self.mapping, next_char_predict)
-            return list(next_char_predict)
+        if return_label:
+            next_char_predict = decode_sequence(self.mapping, next_char_predict)
+        return list(next_char_predict)

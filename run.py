@@ -23,9 +23,18 @@ def main(args):
             next_char = generic_lm.predict(encoded_text, return_prob_table=False, return_label=True)[0]
             input_text += next_char
 
+        sentence_prob = 1
+        for i, char in enumerate(input_text):
+            encoded_text = encode_sequence(mapping, input_text[:i].lower(), padding=True, seq_length=args.seq_length)
+            prob_table = generic_lm.predict(encoded_text, return_prob_table=True)[0]
+            cur_idx = mapping[char]
+            sentence_prob *= prob_table[cur_idx]
+
+        print("Sentence probability: %.10f" % sentence_prob)
+
         if (args.mode == 'right2left'):
             input_text = input_text[::-1]
-            
+
         print('Predict: %s\n' % input_text)
 
 if __name__ == '__main__':
@@ -36,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--mode', type=str, default='left2right')
     parser.add_argument('--multi_gpu', type=bool, default=False)
-    parser.add_argument('--predict_length', type=int, default=100)
+    parser.add_argument('--predict_length', type=int, default=10)
 
     args = parser.parse_args()
 
