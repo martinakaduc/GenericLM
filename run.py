@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ckpt_path', type=str, default='./ckpt')
     parser.add_argument('--model_path', type=str, default='./model')
-    parser.add_argument('--seq_length', type=int, default=40)
+    parser.add_argument('--seq_length', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--mode', type=str, default='left2right')
     parser.add_argument('--multi_gpu', type=bool, default=False)
