@@ -12,7 +12,7 @@ def main(args):
     if os.path.exists(args.corpus[:-4]+'_processed.txt'):
         raw_text = load_data(args.corpus[:-4]+'_processed.txt', processed=True)
     else:
-        raw_text = load_data(args.corpus, linebyline=(True, False)[args.mode == 'linebyline'])
+        raw_text = load_data(args.corpus, linebyline=(False, True)[args.mode == 'linebyline'])
         # raw_text = text_cleaner(raw_text)
         with open(args.corpus[:-4]+'_processed.txt', 'w', encoding='utf8') as f:
             f.write(raw_text)
