@@ -12,7 +12,7 @@ def main(args):
     if os.path.exists(args.corpus[:-4]+'_processed.txt'):
         raw_text = load_data(args.corpus[:-4]+'_processed.txt', processed=True)
     else:
-        raw_text = load_data(args.corpus)
+        raw_text = load_data(args.corpus, linebyline=(True, False)[args.mode == 'linebyline'])
         # raw_text = text_cleaner(raw_text)
         with open(args.corpus[:-4]+'_processed.txt', 'w', encoding='utf8') as f:
             f.write(raw_text)
@@ -65,18 +65,18 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus', type=str, default='truyen_kieu.txt')
+    parser.add_argument('--corpus', type=str, default='30k-container-ids.txt')
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--ckpt_path', type=str, default='./ckpt')
     parser.add_argument('--model_path', type=str, default='./model')
     parser.add_argument('--seq_length', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--mode', type=str, default='left2right')
+    parser.add_argument('--mode', type=str, default='left2right') # left2right, right2left, linebyline
     parser.add_argument('--multi_gpu', type=bool, default=False)
     parser.add_argument('--ckpt_period', type=int, default=1)
     parser.add_argument('--low_ram', type=bool, default=True)
 
     args = parser.parse_args()
 
-    assert args.mode in ['left2right', 'right2left'], "Choose one of these mode: left2right, right2left."
+    assert args.mode in ['left2right', 'right2left', 'linebyline'], "Choose one of these mode: left2right, right2left, linebyline."
     main(args)
