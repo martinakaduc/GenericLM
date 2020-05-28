@@ -12,7 +12,7 @@ def main(args):
     if os.path.exists(args.corpus[:-4]+'_processed.txt'):
         raw_text = load_data(args.corpus[:-4]+'_processed.txt', processed=True)
     else:
-        raw_text = load_data(args.corpus, linebyline=(False, True)[args.mode == 'linebyline'])
+        raw_text = load_data(args.corpus, linebyline=(False, True)[args.mode == 'linebyline' or args.mode == 'linebyline_reverse'])
         # raw_text = text_cleaner(raw_text)
         with open(args.corpus[:-4]+'_processed.txt', 'w', encoding='utf8') as f:
             f.write(raw_text)
@@ -35,10 +35,10 @@ def main(args):
                 batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
     ########################################
 
-    if args.low_ram:
-        if args.mode == 'right2left':
-            raw_text = raw_text[::-1]
+    if args.mode == 'right2left' or args.mode == 'linebyline_reverse:
+        raw_text = raw_text[::-1]
 
+    if args.low_ram:
         model = generic_lm.get_model()
         continue_epoch = generic_lm.get_continue_epoch()
 
@@ -58,9 +58,6 @@ def main(args):
         model.save(os.path.join(args.model_path, 'GenericLM_%s.model'%args.mode))
 
     else:
-        if args.mode == 'right2left':
-            raw_text = raw_text[::-1]
-
         generic_lm.fit(raw_text, epochs=args.epochs, ckpt_period=args.ckpt_period)
 
 if __name__ == '__main__':
@@ -78,5 +75,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    assert args.mode in ['left2right', 'right2left', 'linebyline'], "Choose one of these mode: left2right, right2left, linebyline."
+    assert args.mode in ['left2right', 'right2left', 'linebyline', 'linebyline_reverse'], "Choose one of these mode: left2right, right2left, linebyline, linebyline_reverse."
     main(args)
