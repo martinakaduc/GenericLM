@@ -35,7 +35,7 @@ def main(args):
                 batch_size=args.batch_size, ckpt_path=args.ckpt_path, model_path=args.model_path, mode_name=args.mode)
     ########################################
 
-    if args.mode == 'right2left' or args.mode == 'linebyline_reverse:
+    if args.mode == 'right2left' or args.mode == 'linebyline_reverse':
         raw_text = raw_text[::-1]
 
     if args.low_ram:
